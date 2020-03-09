@@ -1,7 +1,10 @@
 
 package com.example.earthquake_monitor;
 
+import android.content.ContentValues;
+import android.content.Context;
 import android.content.Intent;
+import android.database.sqlite.SQLiteDatabase;
 import android.os.AsyncTask;
 import android.util.Log;
 import android.view.View;
@@ -26,6 +29,11 @@ import javax.crypto.AEADBadTagException;
 public class DownloadEqsAsyncTask extends AsyncTask<URL, Void, ArrayList<EarthQuake>> {
 
     public DownloadEqsInterface delegate;
+    private Context context;
+
+    DownloadEqsAsyncTask(Context context) {
+        this.context = context;
+    }
 
     public interface DownloadEqsInterface {
 
@@ -41,6 +49,7 @@ public class DownloadEqsAsyncTask extends AsyncTask<URL, Void, ArrayList<EarthQu
         try {
             eqData = downloadData(urls[0]);
             eqList = parseDataJson(eqData);
+            saveEarthquakesOnDB(eqList);
         }catch (IOException e) {
             e.printStackTrace();
         }
@@ -53,6 +62,24 @@ public class DownloadEqsAsyncTask extends AsyncTask<URL, Void, ArrayList<EarthQu
         super.onPostExecute(eqList);
 
         delegate.onEqsDownloaded(eqList);
+    }
+
+    private void saveEarthquakesOnDB(ArrayList<EarthQuake> eqList) {
+        EarthquakeDbHelper dbHelper = new EarthquakeDbHelper(this.context);
+        SQLiteDatabase database = dbHelper.getWritableDatabase();
+
+        for(EarthQuake earthQuake : eqList) {
+            ContentValues contentValues = new ContentValues();
+
+            contentValues.put(EarthquakeContract.EarthquakeColumns.MAGNITUDE, earthQuake.getMagnitude());
+            contentValues.put(EarthquakeContract.EarthquakeColumns.PLACE, earthQuake.getPlace());
+            contentValues.put(EarthquakeContract.EarthquakeColumns.LONGITUDE, earthQuake.getLatitude());
+            contentValues.put(EarthquakeContract.EarthquakeColumns.LATITUDE, earthQuake.getLatitude());
+            contentValues.put(EarthquakeContract.EarthquakeColumns.TIMESTAMP, earthQuake.getDateTime());
+
+            database.insert(EarthquakeContract.EarthquakeColumns.TABLE_NAME, null, contentValues);
+        }
+
     }
 
     private ArrayList<EarthQuake> parseDataJson(String eqsData) {
