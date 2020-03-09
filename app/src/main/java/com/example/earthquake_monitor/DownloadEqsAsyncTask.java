@@ -1,9 +1,16 @@
 
 package com.example.earthquake_monitor;
 
+import android.content.Intent;
 import android.os.AsyncTask;
 import android.util.Log;
+import android.view.View;
+import android.widget.AdapterView;
 import android.widget.Toast;
+
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -12,35 +19,73 @@ import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.Charset;
+import java.util.ArrayList;
 
-public class DownloadEqsAsyncTask extends AsyncTask<URL, Void, String> {
+import javax.crypto.AEADBadTagException;
+
+public class DownloadEqsAsyncTask extends AsyncTask<URL, Void, ArrayList<EarthQuake>> {
 
     public DownloadEqsInterface delegate;
 
     public interface DownloadEqsInterface {
 
-        void onEqsDownloaded(String eqsData);
+        void onEqsDownloaded(ArrayList<EarthQuake> eqList);
     }
 
 
     @Override
-    protected String doInBackground(URL... urls) {
-        String earthquakeData = "";
+    protected ArrayList<EarthQuake> doInBackground(URL... urls) {
+        String eqData;
+        ArrayList<EarthQuake> eqList = null;
+
         try {
-           earthquakeData = downloadData(urls[0]);
+            eqData = downloadData(urls[0]);
+            eqList = parseDataJson(eqData);
         }catch (IOException e) {
             e.printStackTrace();
         }
-        return earthquakeData;
+        return eqList;
     } // end doInBackground()
 
 
     @Override
-    protected void onPostExecute(String eqData) {
-        super.onPostExecute(eqData);
+    protected void onPostExecute(ArrayList<EarthQuake> eqList) {
+        super.onPostExecute(eqList);
 
-        delegate.onEqsDownloaded(eqData);
+        delegate.onEqsDownloaded(eqList);
     }
+
+    private ArrayList<EarthQuake> parseDataJson(String eqsData) {
+        ArrayList<EarthQuake> eqList = new ArrayList<>();
+
+        try {
+            JSONObject jsonObject = new JSONObject(eqsData);
+            JSONArray featuresJsonArray = jsonObject.getJSONArray("features");
+
+            for(int i = 0; i < featuresJsonArray.length(); i++) {
+                JSONObject featuresJsonObject = featuresJsonArray.getJSONObject(i);
+                JSONObject propertiesJsonObject = featuresJsonObject.getJSONObject("properties");
+
+                double magnitude = propertiesJsonObject.getDouble("mag");
+                String place = propertiesJsonObject.getString("place");
+                Long timestamp = propertiesJsonObject.getLong("time");
+
+                JSONObject geometryJsonObject = featuresJsonObject.getJSONObject("geometry");
+                JSONArray coordinates = geometryJsonObject.getJSONArray("coordinates");
+                String longitude = coordinates.getString(0);
+                String latitude = coordinates.getString(1);
+
+                eqList.add(new EarthQuake(timestamp, magnitude, place, longitude,latitude));
+                Log.d("MANZANA", magnitude + " " + place);
+            } // end loop for
+
+
+        }catch (JSONException e) {
+            e.printStackTrace();
+        }
+
+        return eqList;
+    } // end parseDataJson(...)
 
     // Api Method
     private String downloadData (URL url) throws IOException {

@@ -52,8 +52,10 @@ public class EarthQuakeAdapter extends ArrayAdapter<EarthQuake> {
 
         EarthQuake earthQuake = eqList.get(position);
 
-        holder.magnitudeTextView.setText(earthQuake.getMagnitude());
-        holder.placeTextView.setText(earthQuake.getPlace());
+        if(holder != null) {
+            holder.magnitudeTextView.setText(String.valueOf(earthQuake.getMagnitude()));
+            holder.placeTextView.setText(earthQuake.getPlace());
+        }
 
         return convertView;
     } // end getView
